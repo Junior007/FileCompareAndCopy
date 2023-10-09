@@ -1,9 +1,9 @@
-﻿using System.Collections.Generic;
-using System.Data.Common;
+﻿using ExifLib;
 using System.Data;
-using System.IO;
-using System.Security.Cryptography;
+using System.Data.Common;
 using System.Data.SqlClient;
+using System.Reflection.PortableExecutable;
+using System.Xml.Linq;
 
 namespace FileCompareAndCopy
 {
@@ -33,6 +33,12 @@ namespace FileCompareAndCopy
                                   FROM [dbo].[Files]
                                 WHERE [Checksum]=@Checksum
                                 ";
+
+
+        internal static string sqlCommandSelectAllText = @"SELECT *
+                                  FROM [dbo].[Files]";
+
+
         internal static string sqlCommandErrorText = @"INSERT 
                              INTO FileErrors (
                                     FullName,
@@ -44,6 +50,8 @@ namespace FileCompareAndCopy
                                     @Date,
                                     @Error
                                 )";
+        internal static string sqlCommandInsertMetadataText = "INSERT INTO Metadata (NewFullName,Value, Name, Type) VALUES (@NewFullName, @Value, @Name, @Type)";
+
 
         private static void GetFileInfos(string from, List<FileData> fileInfos)
         {
@@ -73,9 +81,14 @@ namespace FileCompareAndCopy
         {
             List<FileData> fileInfosDir = new List<FileData>();
             GetFileInfos(to, fileInfosDir);
-            foreach (var fileData in fileInfosDir)
+
+            var withOutFullName = fileInfosDir.Where(x => string.IsNullOrEmpty(x.NewFullName) && x.IsImageVideoFile).ToList();
+
+
+            foreach (var fileData in withOutFullName)
             {
-                if (ExistsInDataBase(fileData, dataBase)) {
+                if (ExistsInDataBase(fileData, dataBase))
+                {
 
                     using (DbCommand command = dataBase.Command)
                     {
@@ -214,6 +227,78 @@ namespace FileCompareAndCopy
             return result;
         }
 
+        internal static void UpdateMetaData(IDatabase dataBase)
+        {
+            using (DbCommand command = dataBase.Command)
+            {
+                command.CommandText = sqlCommandSelectAllText;
+                command.CommandType = CommandType.Text;
 
+                DbDataReader dr = command.ExecuteReader();
+                List<string> paths = new List<string>();
+                while (dr.Read())
+                {
+
+                    string path = dr["NewFullName"].ToString();
+                    paths.Add(path);
+
+                }
+                dr.Close();
+                dr.Dispose();
+                foreach (var path in paths)
+                {
+                    FileInfo fileInfo = new FileInfo(path);
+                    FileData fileData = new FileData(fileInfo, path);
+                    MetadataContainer metaDatas = fileData.MetadataContainer;
+                    var message = "";
+                    if (metaDatas.HasMetadata)
+                    {
+
+
+                        try
+                        {
+                            using (DbCommand insertCommand = dataBase.Command)
+                            {
+                                insertCommand.CommandText = sqlCommandInsertMetadataText;
+                                insertCommand.CommandType = CommandType.Text;
+                                var mdValue = metaDatas.GetMetadataValue<DateTime>(Enum.GetName(ExifTags.DateTime));
+
+                                SqlParameter Fullname = new SqlParameter("@NewFullName", SqlDbType.VarChar);
+                                Fullname.Value = fileData.FullName;
+                                insertCommand.Parameters.Add(Fullname);
+
+                                SqlParameter value = new SqlParameter("@Value", SqlDbType.VarChar);
+                                value.Value = mdValue;
+                                insertCommand.Parameters.Add(value);
+
+                                SqlParameter name = new SqlParameter("@name", SqlDbType.VarChar);
+                                name.Value = Enum.GetName(ExifTags.DateTime);
+                                insertCommand.Parameters.Add(name);
+
+                                SqlParameter type = new SqlParameter("@Type", SqlDbType.VarChar);
+                                type.Value = typeof(DateTime).FullName;
+                                insertCommand.Parameters.Add(type);
+
+                                var result = insertCommand.ExecuteNonQuery();
+
+                            }
+                        }
+                        catch (Exception e) { 
+                            message = e.Message; 
+                        }
+                    }
+                    else
+                    {
+                        message = "No metadata";
+                    }
+                    if (!string.IsNullOrEmpty(message))
+                    {
+                        InsertErrorFile(fileData, message, dataBase);
+
+                    }
+                }
+
+            }
+        }
     }
 }

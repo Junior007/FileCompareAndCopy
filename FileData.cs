@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using ExifLib;
+using System.IO;
 using System.Security.Cryptography;
 
 namespace FileCompareAndCopy
@@ -6,9 +7,11 @@ namespace FileCompareAndCopy
     internal class FileData
     {
         string[] imageVideoExtensions = { ".jpg", ".jpeg", ".png", ".gif", ".bmp" ,
-                                     ".mp4", ".avi", ".mkv", ".mov" };
+                                     ".mp4", ".avi", ".mkv", ".mov",".mpg" };
         private FileInfo _fileInfo { get; }
         private byte[] _file1Checksum;
+        private MetadataContainer _mdc;
+
         private string _fromDir { get; }
         public string ToDir { get; internal set; }
         public string FullName => _fileInfo.FullName;
@@ -44,6 +47,43 @@ namespace FileCompareAndCopy
                     }
                     return _file1Checksum;
                 }
+            }
+        }
+
+        public MetadataContainer MetadataContainer
+        {
+            get
+            {
+                if (_mdc == null)
+                {
+                    _mdc = new MetadataContainer();
+                    try
+                    {
+                        using (ExifReader reader = new ExifReader(FullName))
+                        {
+                            DateTime dateTime;
+                            DateTime dateTimeDigitized;
+                            DateTime dateTimeOriginal;
+                            string model;
+
+
+                            reader.GetTagValue(ExifTags.DateTime, out dateTime);
+                            reader.GetTagValue(ExifTags.DateTimeDigitized, out dateTimeDigitized);
+                            reader.GetTagValue(ExifTags.DateTimeOriginal, out dateTimeOriginal);
+                            reader.GetTagValue(ExifTags.Model, out model);
+
+
+                            _mdc.AddMetadata(new MetaData(dateTime, Enum.GetName(ExifTags.DateTime), typeof(DateTime)));
+                            _mdc.AddMetadata(new MetaData(dateTimeDigitized, Enum.GetName(ExifTags.DateTimeDigitized), typeof(DateTime)));
+                            _mdc.AddMetadata(new MetaData(dateTimeOriginal, Enum.GetName(ExifTags.DateTimeOriginal), typeof(DateTime)));
+                            _mdc.AddMetadata(new MetaData(model, Enum.GetName(ExifTags.Model), typeof(string)));
+                        }
+                    }catch (Exception ex)
+                    {
+                        var noMetaDataException = ex;
+                    }
+                }
+                return _mdc;
             }
         }
 

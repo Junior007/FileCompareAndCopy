@@ -20,6 +20,8 @@ string to = "E:\\Imágenes\\VARIAS_SIN_GUARDAR";
 //ActionDo.MakeDatabase(to, dataBase);
 
 to = "E:";
-ActionDo.UpdateNewFullName(to, dataBase);
+//ActionDo.UpdateNewFullName(to, dataBase);
+
+ActionDo.UpdateMetaData(dataBase);
 
 //ActionDo.CopyFile(from, to, dataBase);
