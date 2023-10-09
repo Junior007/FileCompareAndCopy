@@ -5,6 +5,8 @@ namespace FileCompareAndCopy
 {
     internal class FileData
     {
+        string[] imageVideoExtensions = { ".jpg", ".jpeg", ".png", ".gif", ".bmp" ,
+                                     ".mp4", ".avi", ".mkv", ".mov" };
         private FileInfo _fileInfo { get; }
         private byte[] _file1Checksum;
         private string _fromDir { get; }
@@ -12,6 +14,8 @@ namespace FileCompareAndCopy
         public string FullName => _fileInfo.FullName;
         public string NewFullName { get; private set; }
         public string Name => _fileInfo.Name;
+        public string Extension => _fileInfo.Extension;
+        public bool IsImageVideoFile => imageVideoExtensions.Contains(Extension.ToLower());
         public string Error { get; private set; }
         public string CallStack { get; private set; }
         public bool Copied { get; private set; }
