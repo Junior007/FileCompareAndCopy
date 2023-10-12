@@ -4,7 +4,7 @@
     {
         get
         {
-            return $"Server=DESKTOP-A3A282J;Database=Images;Trusted_Connection=True;";
+            return $"Server=DESKTOP-A3A282J;Database=TEST_Images;Trusted_Connection=True;";
         }
     }
 }
